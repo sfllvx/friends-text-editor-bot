@@ -1,0 +1,10 @@
+name = "friends-text-editor-bot"
+main = "src/index.js"
+compatibility_date = "2026-10-28"
+
+[[kv_namespaces]]
+binding = "USER_DATA"
+id = "6f09ba5a78364c9082ff561e7a1366ff"
+
+[vars]
+GEMINI_MODEL = "gemini-2.5-flash"
