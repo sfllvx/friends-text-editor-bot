@@ -193,8 +193,12 @@ Preserve meaning, facts, numbers, names, dates, uncertainty, citations, quotatio
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: systemInstruction }] },
       contents: [{ role: "user", parts: [{ text }] }],
-      generationConfig: { temperature: 0.5, maxOutputTokens: 4000 }
-    })
+      generationConfig: {
+  maxOutputTokens: 4000,
+  thinkingConfig: {
+    thinkingLevel: "low"
+  }
+}
   });
 
   const data = await response.json().catch(() => ({}));
