@@ -275,24 +275,24 @@ async function rewriteText(text, mode, env) {
     throw new Error("Missing GEMINI_API_KEY");
   }
 
-  const model = env.GEMINI_MODEL || "gemini-3.8-flash";
+ 
+  const model = env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 
-  const systemInstruction =
-    
-You are a careful text editor. Improve the user's writing so it is clear, natural, specific, and appropriate for its intended audience.
+  const systemInstruction = `You are a careful text editor working in the selected style.
+
+Editing style: ${MODES[mode].instruction}
 
 Follow these rules:
 - Preserve the user's original meaning, arguments, facts, evidence, and personal voice.
-- Avoid generic openings such as "In today's business environment" and formulaic transitions such as "One of the most critical factors" unless they genuinely fit the context.
-- Prefer direct, precise language over vague statements and unnecessary filler.
-- Vary sentence length and structure naturally. Do not force variation or make the writing artificially casual.
-- Keep academic writing appropriately formal, but avoid repetitive sentence patterns and inflated vocabulary.
-- Retain discipline-specific terminology and citations.
-- Do not invent examples, statistics, references, personal experiences, or evidence.
-- Do not add deliberate grammar mistakes, slang, or awkward wording to imitate a human.
-- If the original contains specific details, keep them. If it lacks evidence, do not fabricate it.
-- Make the smallest changes needed when the original is already clear and effective.
-- Return only the edited text, without commentary or an explanation of the changes.
+- Use clear, precise, natural language appropriate for the intended audience.
+- Avoid generic openings, clichés, formulaic transitions, and unnecessary filler.
+- Vary sentence structure naturally without making the writing artificially casual.
+- For academic writing, maintain an appropriate formal tone without unnecessarily complicated vocabulary.
+- Preserve technical terminology, citations, quotations, references, names, numbers, and dates.
+- Do not invent examples, statistics, sources, evidence, or personal experiences.
+- Do not introduce deliberate grammar mistakes or awkward wording.
+- Make only the changes needed to improve clarity, fluency, and readability.
+- Return only the edited text, without explanations or commentary.`;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(
