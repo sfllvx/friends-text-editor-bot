@@ -763,6 +763,7 @@ async function blindRewrite(text, notes, mode, env) {
     candidates: scored.map(c => ({
       score: Number(c.score.toFixed(3)),
       overlap: Number(c.overlap.toFixed(3)),
+      violations: c.violations,
       missing: c.missing
     }))
   }));
@@ -793,7 +794,27 @@ function scoreCandidate(candidate, source, notes) {
   );
   const missing = [...facts].filter(f => !candidate.includes(f));
 
-  return { overlap, missing, score: overlap + missing.length };
+  // Rule violations the prompt forbids but the model sometimes produces.
+  const violationPatterns = [
+    /, (?:balancing|ensuring|making|allowing|helping|finding|leading|enabling|highlighting|resulting)\b/gi,
+    /\bincreasingly\b/gi,
+    /\b(?:moreover|furthermore|additionally|in conclusion|for example|for instance)\b/gi,
+    /\bthese include\b/gi,
+    /\b(?:crucial|pivotal|landscape|realm|navigate|foster|robust|seamless|leverage|multifaceted|strategically)\b/gi,
+    /\bplays? a key role\b/gi,
+    /—/g
+  ];
+  const violations = violationPatterns.reduce(
+    (n, re) => n + (candidate.match(re) || []).length,
+    0
+  );
+
+  return {
+    overlap,
+    missing,
+    violations,
+    score: overlap + missing.length + violations * 0.05
+  };
 }
 
 function buildExtractInstruction(mode) {
