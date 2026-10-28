@@ -7,7 +7,7 @@ binding = "USER_DATA"
 id = "6f09ba5a78364c9082ff561e7a1366ff"
 
 [vars]
-GEMINI_MODEL = "gemini-3.8-flash"
+GEMINI_MODEL = "gemini-3.5-flash-lite"
 
 [observability]
 enabled = true
