@@ -55,9 +55,9 @@ const DEFAULT_TEMPERATURE = 1.0;
 // "medium" follows the checklist in the prompt more reliably than "low".
 const DEFAULT_REASONING_EFFORT = "medium";
 const DEFAULT_TWO_PASS = "true";
-// "deepl": round trip through German with DeepL (default when DEEPL_API_KEY is set).
+// "voice": the single-language rewrite with the checklist prompt + polish pass (default).
+// "deepl": round trip through German with DeepL (needs DEEPL_API_KEY).
 // "roundtrip": the same round trip, but translated by the GPT model.
-// "voice": the single-language rewrite with the checklist prompt + polish pass.
 const DEEPL_TIMEOUT_MS = 30000;
 const PIVOT_LANGUAGE = "German";
 const TWO_PASS_MAX_CHARS = 6000;
@@ -508,7 +508,7 @@ async function rewriteText(text, notes, mode, env) {
     throw new Error("Missing OPENAI_API_KEY");
   }
 
-  const strategy = env.STRATEGY || (env.DEEPL_API_KEY ? "deepl" : "roundtrip");
+  const strategy = env.STRATEGY || "voice";
 
   if (strategy === "deepl") {
     if (env.DEEPL_API_KEY) {
