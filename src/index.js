@@ -2,26 +2,24 @@
 const MODES = {
   natural: {
     title: "Natural",
-    description: "Естественна дать",
+    description: "Естественная речь",
     instruction: "Edit for natural, fluent language. Preserve the author's meaning, level of English, and personal writing style. Avoid clichés and unnecessary rewriting."
   },
   academic: {
     title: "Academic",
-    description: "По академски",
+    description: "Академический стиль",
     instruction: "Edit into clear academic prose suitable for a university assignment. Improve precision and logical flow without unnecessarily complex vocabulary. Preserve arguments, limitations, citations, quotations, and references. Do not invent sources or evidence."
   },
   professional: {
     title: "Professional",
-    description: "Деловой дракон",
+    description: "Деловой стиль",
     instruction: "Edit into clear, concise professional writing. Preserve the author's intent, factual details, and natural tone."
   }
 };
 
-const DAILY_REQUEST_LIMIT = 10;
-const DAILY_CHAR_LIMIT = 20000;
-const MAX_INPUT_CHARS = 10000;
+const MAX_INPUT_CHARS = 50000;
 const TELEGRAM_MESSAGE_LIMIT = 3900;
-const GEMINI_TIMEOUT_MS = 45000;
+const OPENAI_TIMEOUT_MS = 45000;
 
 export default {
   async fetch(request, env) {
@@ -41,6 +39,7 @@ export default {
     }
 
     let update;
+
     try {
       update = await request.json();
     } catch {
@@ -48,8 +47,13 @@ export default {
     }
 
     try {
-      if (update.message) await handleMessage(update.message, env);
-      if (update.callback_query) await handleCallback(update.callback_query, env);
+      if (update.message) {
+        await handleMessage(update.message, env);
+      }
+
+      if (update.callback_query) {
+        await handleCallback(update.callback_query, env);
+      }
     } catch (error) {
       console.error("Update handling failed:", error?.message || String(error));
     }
@@ -68,7 +72,7 @@ async function handleMessage(message, env) {
     await sendMessage(
       env,
       chatId,
-      "Братан, у тебя нет доступа, попроси владельца внести твой айди."
+      "У тебя нет доступа. Попроси владельца добавить твой Telegram ID."
     );
     return;
   }
@@ -79,7 +83,7 @@ async function handleMessage(message, env) {
     await sendMessage(
       env,
       chatId,
-      "Пока я обрабатываю только текстовые сообщения. Отправь текст прямо в чат."
+      "Я обрабатываю текстовые сообщения. Отправь текст прямо в чат."
     );
     return;
   }
@@ -98,13 +102,18 @@ async function handleMessage(message, env) {
     await sendMessage(
       env,
       chatId,
-      "/start — меню\n/mode — выбрать стиль\n/usage — посмотреть дневной лимит\n/privacy — информация об обработке данных\n\nОтправь текст до 10 000 символов."
+      "/start — меню\n/mode — выбрать стиль\n/usage — статистика использования\n/privacy — информация об обработке данных\n\nПрограммный лимит входного текста: 50 000 символов. Для обычных сообщений также действуют ограничения Telegram."
     );
     return;
   }
 
   if (text === "/mode") {
-    await sendMessage(env, chatId, "Выбери стиль редактирования:", modeKeyboard());
+    await sendMessage(
+      env,
+      chatId,
+      "Выбери стиль редактирования:",
+      modeKeyboard()
+    );
     return;
   }
 
@@ -112,23 +121,28 @@ async function handleMessage(message, env) {
     await sendMessage(
       env,
       chatId,
-      "Текст отправляется в Google Gemini API для обработки. Для лимитов хранится счётчик использования за день и выбранный режим. Не отправляй пароли или конфиденциальную информацию."
+      "Текст отправляется в OpenAI API для обработки. Бот хранит выбранный режим и статистику использования. Не отправляй пароли или конфиденциальную информацию."
     );
     return;
   }
 
   if (text === "/usage") {
     const usage = await getUsage(userId, env);
+
     await sendMessage(
       env,
       chatId,
-      `Сегодня использовано: ${usage.requests}/${DAILY_REQUEST_LIMIT} запросов и ${usage.chars}/${DAILY_CHAR_LIMIT} символов.`
+      `Сегодня обработано запросов: ${usage.requests}. Символов отправлено: ${usage.chars}. Дневного лимита в боте нет.`
     );
     return;
   }
 
   if (text.startsWith("/")) {
-    await sendMessage(env, chatId, "Неизвестная команда. Используй /help.");
+    await sendMessage(
+      env,
+      chatId,
+      "Неизвестная команда. Используй /help."
+    );
     return;
   }
 
@@ -136,27 +150,14 @@ async function handleMessage(message, env) {
     await sendMessage(
       env,
       chatId,
-      `Текст слишком длинный (${text.length} символов). Максимум — ${MAX_INPUT_CHARS} символов.`
+      `Текст содержит ${text.length} символов. Максимум в коде — ${MAX_INPUT_CHARS} символов. Для более длинного текста можно добавить обработку .txt-файлов.`
     );
     return;
   }
 
   const usage = await getUsage(userId, env);
-
-  if (
-    usage.requests >= DAILY_REQUEST_LIMIT ||
-    usage.chars + text.length > DAILY_CHAR_LIMIT
-  ) {
-    await sendMessage(
-      env,
-      chatId,
-      `Дневной лимит достигнут: ${DAILY_REQUEST_LIMIT} запросов и ${DAILY_CHAR_LIMIT} символов. Попробуй завтра.`,
-      modeKeyboard()
-    );
-    return;
-  }
-
   const mode = await getMode(userId, env);
+
   await sendChatAction(env, chatId, "typing");
 
   try {
@@ -185,8 +186,8 @@ async function handleMessage(message, env) {
     console.error("Rewrite failed:", error?.message || String(error));
 
     const messageText = error?.name === "AbortError"
-      ? "Запрос к Gemini превысил лимит ожидания. Попробуй ещё раз позже."
-      : "Не удалось обработать текст. Проверь Cloudflare Logs. Запрос не был засчитан.";
+      ? "Запрос к OpenAI превысил лимит ожидания. Попробуй ещё раз позже."
+      : "Не удалось обработать текст. Проверь Cloudflare Logs. Подробности ошибки доступны в логах.";
 
     await sendMessage(env, chatId, messageText);
   }
@@ -218,7 +219,11 @@ async function handleCallback(query, env) {
       { expirationTtl: 60 * 60 * 24 * 90 }
     );
 
-    await answerCallback(env, query.id, `Выбран режим ${MODES[mode].title}`);
+    await answerCallback(
+      env,
+      query.id,
+      `Выбран режим ${MODES[mode].title}`
+    );
 
     await sendMessage(
       env,
@@ -263,7 +268,9 @@ async function getMode(userId, env) {
 async function getUsage(userId, env) {
   const raw = await env.USER_DATA.get(usageKey(userId));
 
-  if (!raw) return { requests: 0, chars: 0 };
+  if (!raw) {
+    return { requests: 0, chars: 0 };
+  }
 
   try {
     const parsed = JSON.parse(raw);
@@ -284,7 +291,6 @@ async function saveUsage(userId, requests, chars, env) {
     { expirationTtl: 60 * 60 * 48 }
   );
 }
-
 
 async function rewriteText(text, mode, env) {
   if (!env.OPENAI_API_KEY) {
@@ -340,7 +346,10 @@ Return only the final edited text.
 Do not include introductions, explanations, commentary, or editing notes.`;
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 45000);
+  const timeoutId = setTimeout(
+    () => controller.abort(),
+    OPENAI_TIMEOUT_MS
+  );
 
   try {
     const response = await fetch(
@@ -357,7 +366,7 @@ Do not include introductions, explanations, commentary, or editing notes.`;
           instructions: systemInstruction,
           input: text,
           reasoning: { effort: "medium" },
-          max_output_tokens: 4000
+          max_output_tokens: 8000
         })
       }
     );
@@ -395,6 +404,7 @@ Do not include introductions, explanations, commentary, or editing notes.`;
     clearTimeout(timeoutId);
   }
 }
+
 async function telegramCall(env, method, payload) {
   if (!env.TELEGRAM_BOT_TOKEN) {
     throw new Error("Missing TELEGRAM_BOT_TOKEN");
@@ -455,7 +465,9 @@ function splitText(text, limit) {
     rest = rest.slice(cut).trimStart();
   }
 
-  if (rest) chunks.push(rest);
+  if (rest) {
+    chunks.push(rest);
+  }
 
   return chunks;
 }
