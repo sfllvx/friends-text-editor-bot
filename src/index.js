@@ -89,6 +89,8 @@ const DEFAULT_TWO_PASS = "true";
 // "roundtrip": the same round trip, but translated by the GPT model.
 const DEEPL_TIMEOUT_MS = 30000;
 const PIVOT_LANGUAGE = "German";
+// Number of compose candidates written in parallel by the "blind" strategy.
+const DEFAULT_CANDIDATES = 3;
 const TWO_PASS_MAX_CHARS = 6000;
 
 export default {
@@ -730,12 +732,68 @@ async function blindRewrite(text, notes, mode, env) {
   );
 
   // The composer sees only the claims, never the original wording.
-  return callOpenAI(
-    buildComposeInstruction(mode, detectLanguage(text)),
-    claims,
-    env,
-    "compose"
+  // Output quality varies a lot between runs, so several candidates are
+  // written in parallel and the one least like the source is kept.
+  const count = Math.min(Math.max(Number(env.CANDIDATES) || DEFAULT_CANDIDATES, 1), 5);
+  const instruction = buildComposeInstruction(mode, detectLanguage(text));
+
+  const results = await Promise.allSettled(
+    Array.from({ length: count }, (_, i) =>
+      callOpenAI(instruction, claims, env, `compose#${i + 1}`)
+    )
   );
+
+  const candidates = results
+    .filter(r => r.status === "fulfilled")
+    .map(r => r.value);
+
+  if (!candidates.length) {
+    throw results[0].reason;
+  }
+
+  const scored = candidates.map(candidate => ({
+    candidate,
+    ...scoreCandidate(candidate, text, notes)
+  }));
+
+  scored.sort((a, b) => a.score - b.score);
+
+  console.log(JSON.stringify({
+    step: "pick",
+    candidates: scored.map(c => ({
+      score: Number(c.score.toFixed(3)),
+      overlap: Number(c.overlap.toFixed(3)),
+      missing: c.missing
+    }))
+  }));
+
+  return scored[0].candidate;
+}
+
+// Lower is better. Overlap = share of the source's 3-word sequences that
+// reappear in the candidate. Every number or citation year from the source
+// (or notes) that is missing from the candidate adds a heavy penalty.
+function scoreCandidate(candidate, source, notes) {
+  const words = t => (t.toLowerCase().match(/[\p{L}\p{N}%]+/gu) || []);
+  const trigrams = t => {
+    const w = words(t);
+    const set = new Set();
+    for (let i = 0; i + 2 < w.length; i++) set.add(`${w[i]} ${w[i + 1]} ${w[i + 2]}`);
+    return set;
+  };
+
+  const sourceGrams = trigrams(source);
+  const candidateGrams = trigrams(candidate);
+  let shared = 0;
+  for (const g of sourceGrams) if (candidateGrams.has(g)) shared++;
+  const overlap = sourceGrams.size ? shared / sourceGrams.size : 0;
+
+  const facts = new Set(
+    `${source}\n${notes || ""}`.match(/\d+(?:[.,]\d+)?%?/g) || []
+  );
+  const missing = [...facts].filter(f => !candidate.includes(f));
+
+  return { overlap, missing, score: overlap + missing.length };
 }
 
 function buildExtractInstruction(mode) {
