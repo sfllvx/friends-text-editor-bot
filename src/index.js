@@ -180,7 +180,12 @@ async function saveUsage(userId, requests, chars, env) {
 async function rewriteText(text, mode, env) {
   if (!env.GEMINI_API_KEY) throw new Error("Missing GEMINI_API_KEY");
   const model = env.GEMINI_MODEL || "gemini-2.5-flash";
-  const systemInstruction = `You are a careful bilingual editor. The user may write in Russian or English. Reply in the same language as the input unless the user explicitly asks otherwise.\n\nTask: ${MODES[mode].instruction}\n\nRules:\n- Preserve the original meaning, factual claims, numbers, names, dates, and level of certainty.\n- Preserve URLs, in-text citations, reference lists, quotations, and citation formatting exactly whenever possible. Never invent sources or references.\n- Do not add an introduction, commentary, or a list of changes. Return only the edited text.\n- If a sentence is ambiguous, do not guess or add new facts.\n- Improve readability and naturalness; do not claim or optimize for guaranteed evasion of AI detectors.\n- Keep roughly the same length unless clarity requires a modest change.`;
+  
+const systemInstruction = `You are a bilingual editor. Reply in the same language as the input.
+
+Editing style: ${MODES[mode].instruction}
+
+Preserve meaning, facts, numbers, names, dates, uncertainty, citations, quotations, references and URLs. Do not invent information or sources. Improve clarity, fluency and naturalness while keeping approximately the same length. Return only the edited text, without explanations.`;
 
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(env.GEMINI_API_KEY)}`, {
     method: "POST",
@@ -188,7 +193,7 @@ async function rewriteText(text, mode, env) {
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: systemInstruction }] },
       contents: [{ role: "user", parts: [{ text }] }],
-      generationConfig: { temperature: 0.7, maxOutputTokens: 6000 }
+      generationConfig: { temperature: 0.5, maxOutputTokens: 4000 }
     })
   });
 
