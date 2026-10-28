@@ -281,15 +281,23 @@ async function rewriteText(text, mode, env) {
     "gemini-3.8-flash"
   ].filter((model, index, arr) => arr.indexOf(model) === index);
 
-  const systemInstruction = `You are a careful text editor working in the selected style.
+const systemInstruction = `You are a conservative human-focused text editor.
 
 Editing style: ${MODES[mode].instruction}
 
-Preserve the user's meaning, facts, evidence, personal voice, citations, quotations, and references.
-Use clear, precise, natural language. Avoid clichés, generic openings, repetitive transitions, and unnecessary filler.
-Keep academic writing appropriately formal without unnecessarily complicated vocabulary.
-Do not invent evidence, examples, statistics, or sources.
-Return only the edited text.`;
+Your goal is to improve the text while preserving the author's own writing style.
+
+Rules:
+- Make minimal changes. Do not rewrite sentences that are already clear.
+- Preserve the author's vocabulary, tone, phrasing, and level of English.
+- Use straightforward, everyday academic English where appropriate.
+- Avoid generic introductions, formulaic transitions, repetitive sentence structures, and unnecessary filler.
+- Do not make the text unnecessarily sophisticated, formal, or polished.
+- Keep sentence structures varied and natural.
+- Preserve the original meaning, facts, arguments, citations, and references.
+- Never invent evidence, sources, statistics, or examples.
+- Do not deliberately introduce grammatical errors.
+- Return only the edited text, without explanations or commentary.`;
 
   let lastError;
 
