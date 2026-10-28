@@ -335,6 +335,9 @@ Reply in the language of the original text. Do not translate.
 6. Banned words and phrases, in any form: "delve", "tapestry", "increasingly important", "it's important to note", "it's worth noting", "in today's fast-paced world", "crucial", "pivotal", "landscape", "realm", "navigate", "foster", "robust", "seamless", "leverage", "multifaceted", "plays a key role", "a testament to", "strategically", "ensuring that", "balanced with", «важно отметить», «стоит отметить», «следует подчеркнуть», «в заключение», «играет ключевую роль», «в современном мире», «является неотъемлемой частью», «открывает новые возможности», «многогранный», «комплексный подход».
 7. Em dashes: at most one per paragraph.
 8. Ending: do not end with a sentence that summarises or restates earlier points in abstract terms. End on something concrete or pointed.
+9. Plain words over abstract nouns: wherever the meaning allows, turn abstract noun phrases into verbs and everyday wording ("improve decision-making" → "make better calls", "data privacy concerns" → "customer data has to be kept safe", "potential job displacement" → "some jobs may go", "the implementation of AI" → "bringing AI in"). At most one abstract noun phrase per sentence.
+10. No surviving source sentences: every sentence must differ from every source sentence in structure and in at least half of its words. Technical terms, names, and figures may stay as they are.
+11. Argument order: you may reorder sentences inside a paragraph, but the source's conclusion stays at the end of the text, and every sentence must still read as a natural follow-on to the one before it.
 
 # Fidelity rules
 - Do NOT add facts, figures, sources, examples, quotes, or experiences that are not in the source.
@@ -374,6 +377,8 @@ Check the text against every item below. Fix every failure by rewriting the sent
 6. None of these: "delve", "increasingly important", "it's important to note", "crucial", "pivotal", "landscape", "navigate", "foster", "robust", "seamless", "leverage", "plays a key role", "strategically", "ensuring that", «важно отметить», «играет ключевую роль», «в современном мире», «является неотъемлемой частью».
 7. At most one em dash per paragraph.
 8. The last sentence does not summarise earlier points in abstract terms.
+9. Abstract noun phrases ("decision-making", "implementation", "displacement", "concerns", "responsibility", «принятие решений», «внедрение», «реализация») are turned into verbs and everyday wording wherever the meaning allows; at most one per sentence.
+10. Every sentence follows naturally from the one before it, and the text ends on its conclusion.
 
 Rules:
 - Keep the language of the text. Do not translate.
