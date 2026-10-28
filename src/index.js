@@ -285,148 +285,78 @@ async function saveUsage(userId, requests, chars, env) {
   );
 }
 
+
 async function rewriteText(text, mode, env) {
-  if (!env.GEMINI_API_KEY) {
-    throw new Error("Missing GEMINI_API_KEY");
+  if (!env.OPENAI_API_KEY) {
+    throw new Error("Missing OPENAI_API_KEY");
   }
 
-  const models = [
-    env.GEMINI_MODEL || "gemini-3.5-flash-lite",
-    "gemini-3.5-flash-lite",
-    "gemini-3.8-flash"
-  ].filter((model, index, arr) => arr.indexOf(model) === index);
-
- 
-const systemInstruction = `You are a professional editor and expert in deep text rewriting.
+  const systemInstruction = `You are an expert editor. Follow the selected editing style carefully.
 
 Editing style: ${MODES[mode].instruction}
 
-Your goal is to rewrite the provided text so it reads naturally, flows smoothly, and retains the author's individual voice.
+Rewrite the text thoughtfully, not by merely replacing words with synonyms.
+- Improve sentence structure and paragraph flow where useful.
+- Vary sentence length naturally.
+- Remove clichés, generic openings, repetitive transitions, and filler.
+- Preserve the author's voice and approximate level of English.
+- Prefer clear vocabulary over unnecessarily sophisticated language.
+- Preserve the original meaning, facts, figures, names, dates, citations and quotations.
+- Do not invent evidence, statistics, references or personal experiences.
+- Do not introduce deliberate spelling or grammar mistakes.
+- Return only the final edited text, without commentary.`;
 
-1. SENTENCE RHYTHM AND STRUCTURE
-- Vary sentence length and structure according to the meaning.
-- Combine concise statements with longer, more developed explanations where appropriate.
-- Avoid repetitive sentence patterns and monotonous paragraph structures.
-- Do not force short sentences into the text when they interrupt the natural flow.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 45000);
 
-2. REMOVE CLICHÉS AND FORMULAIC LANGUAGE
-- Avoid generic phrases such as "In today's fast-paced world", "It is important to note", "Furthermore", "Moreover", "In conclusion", and "A key aspect to consider" when they add no meaningful information.
-- Avoid unnecessary transitions and filler.
-- Do not summarise the same point at the end of every paragraph.
-- Let each paragraph develop its own argument naturally.
+  try {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${env.OPENAI_API_KEY}`
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: "gpt-6.1-sol",
+        instructions: systemInstruction,
+        input: text,
+        reasoning: { effort: "medium" },
+        max_output_tokens: 4000
+      })
+    });
 
-3. SYNTAX AND VOICE
-- Prefer active voice when it makes the sentence clearer.
-- Use precise verbs and concrete explanations.
-- Avoid repeating the same words or using parallel sentence structures in adjacent sentences.
-- Preserve passive voice when it is appropriate to the subject or academic context.
+    const data = await response.json().catch(() => ({}));
 
-4. TONE AND VOCABULARY
-- Adapt the tone to the selected editing style and intended audience.
-- Prefer clear, familiar vocabulary over unnecessarily sophisticated synonyms.
-- Preserve the author's original level of English and individual writing habits.
-- Avoid excessively polished, generic, or robotic-sounding prose.
-- Do not change wording merely to make it look different.
-- Make substantial changes only when they improve clarity, flow, or precision.
-
-5. ACCURACY AND MEANING
-- Preserve the original meaning, facts, figures, examples, and logical relationships.
-- Do not invent evidence, statistics, references, or personal experiences.
-- Preserve citations, quotations, names, and dates.
-- Do not deliberately introduce errors or change factual claims.
-
-6. FINAL REVIEW
-- Check that the text reads clearly and naturally.
-- Remove unnecessary repetition and generic phrasing.
-- Ensure that the selected editing style is consistent throughout.
-- Keep useful original wording when it already works well.
-
-OUTPUT FORMAT
-Return only the final edited text.
-Do not include introductions, explanations, commentary, or editing notes.`;
-
-  let lastError;
-
-  for (const model of models) {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(
-        () => controller.abort(),
-        GEMINI_TIMEOUT_MS
+    if (!response.ok) {
+      throw new Error(
+        `OpenAI API ${response.status}: ${
+          data?.error?.message || "Request failed"
+        }`
       );
-
-      try {
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(env.GEMINI_API_KEY)}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            signal: controller.signal,
-            body: JSON.stringify({
-              systemInstruction: {
-                parts: [{ text: systemInstruction }]
-              },
-              contents: [
-                { role: "user", parts: [{ text }] }
-              ],
-              generationConfig: {
-                maxOutputTokens: 4000
-              }
-            })
-          }
-        );
-
-        const data = await response.json().catch(() => ({}));
-
-        if (response.ok) {
-          const output = (data?.candidates?.[0]?.content?.parts || [])
-            .map(part => part.text || "")
-            .join("")
-            .trim();
-
-          if (output) return output;
-
-          lastError = new Error(
-            `Empty response from ${model}: ${
-              data?.candidates?.[0]?.finishReason || "unknown"
-            }`
-          );
-          break;
-        }
-
-        const message = data?.error?.message || `HTTP ${response.status}`;
-        lastError = new Error(`Gemini API ${response.status}: ${message}`);
-
-        if (![408, 429, 500, 502, 503, 504].includes(response.status)) {
-          throw lastError;
-        }
-      } catch (error) {
-        lastError = error;
-
-        const statusMatch = error?.message?.match(/Gemini API (\d{3}):/);
-        const status = statusMatch ? Number(statusMatch[1]) : null;
-
-        if (
-          status !== null &&
-          ![408, 429, 500, 502, 503, 504].includes(status)
-        ) {
-          throw error;
-        }
-      } finally {
-        clearTimeout(timeoutId);
-      }
-
-      if (attempt < 2) {
-        await new Promise(resolve =>
-          setTimeout(resolve, 1000 * (2 ** attempt))
-        );
-      }
     }
 
-    console.warn(`Model ${model} failed; trying next model.`);
-  }
+    const output = (data.output || [])
+      .filter(item => item.type === "message")
+      .flatMap(item => item.content || [])
+      .filter(item => item.type === "output_text")
+      .map(item => item.text || "")
+      .join("")
+      .trim();
 
-  throw lastError || new Error("All Gemini models failed");
+    if (!output) {
+      throw new Error("OpenAI returned no text");
+    }
+
+    return output;
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("OpenAI request timed out after 45 seconds");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 async function telegramCall(env, method, payload) {
