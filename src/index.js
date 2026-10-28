@@ -2,17 +2,17 @@
 const MODES = {
   natural: {
     title: "Natural",
-    description: "Естественная редактура",
+    description: "Естественна дать",
     instruction: "Edit for natural, fluent language. Preserve the author's meaning, level of English, and personal writing style. Avoid clichés and unnecessary rewriting."
   },
   academic: {
     title: "Academic",
-    description: "Академический стиль",
+    description: "По академски",
     instruction: "Edit into clear academic prose suitable for a university assignment. Improve precision and logical flow without unnecessarily complex vocabulary. Preserve arguments, limitations, citations, quotations, and references. Do not invent sources or evidence."
   },
   professional: {
     title: "Professional",
-    description: "Деловой стиль",
+    description: "Деловой дракон",
     instruction: "Edit into clear, concise professional writing. Preserve the author's intent, factual details, and natural tone."
   }
 };
@@ -68,7 +68,7 @@ async function handleMessage(message, env) {
     await sendMessage(
       env,
       chatId,
-      "Этот бот закрытый. Попроси владельца добавить твой Telegram ID в список доступа."
+      "Братан, у тебя нет доступа, попроси владельца внести твой айди."
     );
     return;
   }
@@ -88,7 +88,7 @@ async function handleMessage(message, env) {
     await sendMessage(
       env,
       chatId,
-      "Привет! Я редактор текстов на русском и английском. Выбери стиль, затем отправь текст.\n\nЯ помогаю улучшать ясность и естественность текста, но не гарантирую результат конкретного AI-детектора.",
+      "Салам Аллейкум! Я редактор текстов на русском и английском. Выбери стиль, затем отправь текст.\n\nЯ помогаю улучшать ясность и естественность текста, но не гарантирую результат конкретного AI-детектора.",
       modeKeyboard()
     );
     return;
@@ -173,6 +173,13 @@ async function handleMessage(message, env) {
       env,
       chatId,
       `Готово · ${MODES[mode].title}\n\n${edited}`
+    );
+
+    await sendMessage(
+      env,
+      chatId,
+      "Выбери стиль для следующего текста:",
+      modeKeyboard()
     );
   } catch (error) {
     console.error("Rewrite failed:", error?.message || String(error));
