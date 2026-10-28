@@ -802,12 +802,30 @@ function scoreCandidate(candidate, source, notes) {
     /\bthese include\b/gi,
     /\b(?:crucial|pivotal|landscape|realm|navigate|foster|robust|seamless|leverage|multifaceted|strategically)\b/gi,
     /\bplays? a key role\b/gi,
-    /—/g
+    /—/g,
+    /, while\b/gi,
+    /\btrying to\b/gi
   ];
-  const violations = violationPatterns.reduce(
+  let violations = violationPatterns.reduce(
     (n, re) => n + (candidate.match(re) || []).length,
     0
   );
+
+  // Repetition: a longer word used 3+ times in one paragraph counts as a
+  // violation for each extra use, unless the source repeats it as much
+  // (topic terms like "productivity" are allowed to recur).
+  const sourceCounts = {};
+  for (const w of words(source)) sourceCounts[w] = (sourceCounts[w] || 0) + 1;
+
+  for (const paragraph of candidate.split(/\n\s*\n/)) {
+    const counts = {};
+    for (const w of words(paragraph)) {
+      if (w.length >= 6) counts[w] = (counts[w] || 0) + 1;
+    }
+    for (const [w, c] of Object.entries(counts)) {
+      if (c >= 3 && c > (sourceCounts[w] || 0)) violations += c - 2;
+    }
+  }
 
   return {
     overlap,
