@@ -270,7 +270,109 @@ async function saveUsage(userId, requests, chars, env) {
   );
 }
 
+
 async function rewriteText(text, mode, env) {
+  if (!env.GEMINI_API_KEY) {
+    throw new Error("Missing GEMINI_API_KEY");
+  }
+
+  const models = [
+    env.GEMINI_MODEL || "gemini-3.5-flash-lite",
+    "gemini-3.8-flash"
+  ].filter((model, index, arr) => arr.indexOf(model) === index);
+
+  const systemInstruction = `You are a careful text editor working in the selected style.
+
+Editing style: ${MODES[mode].instruction}
+
+Preserve the user's meaning, facts, evidence, personal voice, citations, quotations, and references.
+Use clear, precise, natural language. Avoid clichés, generic openings, repetitive transitions, and unnecessary filler.
+Keep academic writing appropriately formal without unnecessarily complicated vocabulary.
+Do not invent evidence, examples, statistics, or sources.
+Return only the edited text.`;
+
+  let lastError;
+
+  for (const model of models) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(
+        () => controller.abort(),
+        GEMINI_TIMEOUT_MS
+      );
+
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(env.GEMINI_API_KEY)}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            signal: controller.signal,
+            body: JSON.stringify({
+              systemInstruction: {
+                parts: [{ text: systemInstruction }]
+              },
+              contents: [
+                { role: "user", parts: [{ text }] }
+              ],
+              generationConfig: {
+                maxOutputTokens: 4000
+              }
+            })
+          }
+        );
+
+        const data = await response.json().catch(() => ({}));
+
+        if (response.ok) {
+          const output = (data?.candidates?.[0]?.content?.parts || [])
+            .map(part => part.text || "")
+            .join("")
+            .trim();
+
+          if (output) return output;
+
+          lastError = new Error(
+            `Empty response from ${model}: ${
+              data?.candidates?.[0]?.finishReason || "unknown"
+            }`
+          );
+          break;
+        }
+
+        const message = data?.error?.message || `HTTP ${response.status}`;
+        lastError = new Error(`Gemini API ${response.status}: ${message}`);
+
+        if (![408, 429, 500, 502, 503, 504].includes(response.status)) {
+          throw lastError;
+        }
+      } catch (error) {
+        lastError = error;
+
+        if (
+          error?.message?.includes("Gemini API 401") ||
+          error?.message?.includes("Gemini API 403") ||
+          error?.message?.includes("Gemini API 400")
+        ) {
+          throw error;
+        }
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      if (attempt < 2) {
+        await new Promise(resolve =>
+          setTimeout(resolve, 1000 * (2 ** attempt))
+        );
+      }
+    }
+
+    console.warn(`Model ${model} failed; trying next model.`);
+  }
+
+  throw lastError || new Error("All Gemini models failed");
+}
+
   if (!env.GEMINI_API_KEY) {
     throw new Error("Missing GEMINI_API_KEY");
   }
