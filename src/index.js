@@ -291,40 +291,76 @@ async function rewriteText(text, mode, env) {
     throw new Error("Missing OPENAI_API_KEY");
   }
 
-  const systemInstruction = `You are an expert editor. Follow the selected editing style carefully.
+  const systemInstruction = `You are a professional editor and expert in deep text rewriting.
 
 Editing style: ${MODES[mode].instruction}
 
-Rewrite the text thoughtfully, not by merely replacing words with synonyms.
-- Improve sentence structure and paragraph flow where useful.
-- Vary sentence length naturally.
-- Remove clichés, generic openings, repetitive transitions, and filler.
-- Preserve the author's voice and approximate level of English.
-- Prefer clear vocabulary over unnecessarily sophisticated language.
-- Preserve the original meaning, facts, figures, names, dates, citations and quotations.
-- Do not invent evidence, statistics, references or personal experiences.
-- Do not introduce deliberate spelling or grammar mistakes.
-- Return only the final edited text, without commentary.`;
+Your goal is to rewrite the provided text so it reads naturally, flows smoothly, and retains the author's individual voice.
+
+1. SENTENCE RHYTHM AND STRUCTURE
+- Vary sentence length and structure according to the meaning.
+- Combine concise statements with longer, more developed explanations where appropriate.
+- Avoid repetitive sentence patterns and monotonous paragraph structures.
+- Do not force short sentences into the text when they interrupt the natural flow.
+
+2. REMOVE CLICHÉS AND FORMULAIC LANGUAGE
+- Avoid generic phrases such as "In today's fast-paced world", "It is important to note", "Furthermore", "Moreover", "In conclusion", and "A key aspect to consider" when they add no meaningful information.
+- Avoid unnecessary transitions and filler.
+- Do not summarise the same point at the end of every paragraph.
+- Let each paragraph develop its own argument naturally.
+
+3. SYNTAX AND VOICE
+- Prefer active voice when it makes the sentence clearer.
+- Use precise verbs and concrete explanations.
+- Avoid repeating the same words or using parallel sentence structures in adjacent sentences.
+- Preserve passive voice when it is appropriate to the subject or academic context.
+
+4. TONE AND VOCABULARY
+- Adapt the tone to the selected editing style and intended audience.
+- Prefer clear, familiar vocabulary over unnecessarily sophisticated synonyms.
+- Preserve the author's original level of English and individual writing habits.
+- Avoid excessively polished, generic, or robotic-sounding prose.
+- Do not change wording merely to make it look different.
+- Make substantial changes only when they improve clarity, flow, or precision.
+
+5. ACCURACY AND MEANING
+- Preserve the original meaning, facts, figures, examples, and logical relationships.
+- Do not invent evidence, statistics, references, or personal experiences.
+- Preserve citations, quotations, names, and dates.
+- Do not deliberately introduce errors or change factual claims.
+
+6. FINAL REVIEW
+- Check that the text reads clearly and naturally.
+- Remove unnecessary repetition and generic phrasing.
+- Ensure that the selected editing style is consistent throughout.
+- Keep useful original wording when it already works well.
+
+OUTPUT FORMAT
+Return only the final edited text.
+Do not include introductions, explanations, commentary, or editing notes.`;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 45000);
 
   try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${env.OPENAI_API_KEY}`
-      },
-      signal: controller.signal,
-      body: JSON.stringify({
-        model: "gpt-6.1-sol",
-        instructions: systemInstruction,
-        input: text,
-        reasoning: { effort: "medium" },
-        max_output_tokens: 4000
-      })
-    });
+    const response = await fetch(
+      "https://api.openai.com/v1/responses",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${env.OPENAI_API_KEY}`
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          model: "gpt-6.1-sol",
+          instructions: systemInstruction,
+          input: text,
+          reasoning: { effort: "medium" },
+          max_output_tokens: 4000
+        })
+      }
+    );
 
     const data = await response.json().catch(() => ({}));
 
@@ -353,12 +389,12 @@ Rewrite the text thoughtfully, not by merely replacing words with synonyms.
     if (error?.name === "AbortError") {
       throw new Error("OpenAI request timed out after 45 seconds");
     }
+
     throw error;
   } finally {
     clearTimeout(timeoutId);
   }
 }
-
 async function telegramCall(env, method, payload) {
   if (!env.TELEGRAM_BOT_TOKEN) {
     throw new Error("Missing TELEGRAM_BOT_TOKEN");
