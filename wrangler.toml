@@ -8,3 +8,10 @@ id = "6f09ba5a78364c9082ff561e7a1366ff"
 
 [vars]
 GEMINI_MODEL = "gemini-3.8-flash"
+
+[observability]
+enabled = true
+
+[observability.logs]
+invocation_logs = true
+head_sampling_rate = 1
