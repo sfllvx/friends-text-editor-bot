@@ -3,17 +3,17 @@ const MODES = {
   natural: {
     title: "Natural",
     description: "Естественная редактура",
-    instruction: "Edit for natural, fluent language. Vary sentence structure where appropriate, remove clichés and awkward phrasing, and preserve the author's meaning and level of certainty. Do not add unsupported claims."
+    instruction: "Edit for natural, fluent language. Preserve the author's meaning, level of English, and personal writing style. Avoid clichés and unnecessary rewriting."
   },
   academic: {
     title: "Academic",
     description: "Академический стиль",
-    instruction: "Edit into clear, credible academic prose appropriate for a university assignment. Improve precision, logical flow, and formality without making the text needlessly complicated. Preserve the author's argument, limitations, citations, quotations, and references. Do not invent sources or evidence."
+    instruction: "Edit into clear academic prose suitable for a university assignment. Improve precision and logical flow without unnecessarily complex vocabulary. Preserve arguments, limitations, citations, quotations, and references. Do not invent sources or evidence."
   },
   professional: {
     title: "Professional",
     description: "Деловой стиль",
-    instruction: "Edit into concise, polished professional writing. Improve clarity, tone, structure, and readability while preserving the author's intent and factual details."
+    instruction: "Edit into clear, concise professional writing. Preserve the author's intent, factual details, and natural tone."
   }
 };
 
@@ -65,14 +65,22 @@ async function handleMessage(message, env) {
   if (!chatId || !userId) return;
 
   if (!isAllowed(userId, env)) {
-    await sendMessage(env, chatId, "Этот бот закрытый. Попроси владельца добавить твой Telegram ID в список доступа.");
+    await sendMessage(
+      env,
+      chatId,
+      "Этот бот закрытый. Попроси владельца добавить твой Telegram ID в список доступа."
+    );
     return;
   }
 
   const text = (message.text || "").trim();
 
   if (!text) {
-    await sendMessage(env, chatId, "Пока я обрабатываю только текстовые сообщения. Отправь текст прямо в чат.");
+    await sendMessage(
+      env,
+      chatId,
+      "Пока я обрабатываю только текстовые сообщения. Отправь текст прямо в чат."
+    );
     return;
   }
 
@@ -80,7 +88,7 @@ async function handleMessage(message, env) {
     await sendMessage(
       env,
       chatId,
-      "Привет! Я редактор текстов на русском и английском. Выбери стиль, затем отправь текст.\n\nЯ улучшаю естественность и ясность, но не могу гарантировать результат конкретного ИИ-детектора.",
+      "Привет! Я редактор текстов на русском и английском. Выбери стиль, затем отправь текст.\n\nЯ помогаю улучшать ясность и естественность текста, но не гарантирую результат конкретного AI-детектора.",
       modeKeyboard()
     );
     return;
@@ -90,7 +98,7 @@ async function handleMessage(message, env) {
     await sendMessage(
       env,
       chatId,
-      "/start — меню\n/mode — выбрать стиль\n/usage — посмотреть дневной лимит\n/privacy — как обрабатываются данные\n\nОтправь текст до 10 000 символов для редактирования."
+      "/start — меню\n/mode — выбрать стиль\n/usage — посмотреть дневной лимит\n/privacy — информация об обработке данных\n\nОтправь текст до 10 000 символов."
     );
     return;
   }
@@ -104,7 +112,7 @@ async function handleMessage(message, env) {
     await sendMessage(
       env,
       chatId,
-      "Текст не сохраняется ботом в базе данных. Для лимитов хранится только счётчик использования за день и выбранный режим. Текст отправляется в Google Gemini API для обработки, поэтому не отправляй пароли, финансовые данные или другую конфиденциальную информацию. Проверь актуальные условия обработки данных Google перед использованием."
+      "Текст отправляется в Google Gemini API для обработки. Для лимитов хранится счётчик использования за день и выбранный режим. Не отправляй пароли или конфиденциальную информацию."
     );
     return;
   }
@@ -128,7 +136,7 @@ async function handleMessage(message, env) {
     await sendMessage(
       env,
       chatId,
-      `Текст слишком длинный (${text.length} символов). Максимум — ${MAX_INPUT_CHARS} символов за один запрос.`
+      `Текст слишком длинный (${text.length} символов). Максимум — ${MAX_INPUT_CHARS} символов.`
     );
     return;
   }
@@ -142,7 +150,7 @@ async function handleMessage(message, env) {
     await sendMessage(
       env,
       chatId,
-      `Дневной бесплатный лимит достигнут. Лимит: ${DAILY_REQUEST_LIMIT} запросов и ${DAILY_CHAR_LIMIT} символов в день. Попробуй завтра.`,
+      `Дневной лимит достигнут: ${DAILY_REQUEST_LIMIT} запросов и ${DAILY_CHAR_LIMIT} символов. Попробуй завтра.`,
       modeKeyboard()
     );
     return;
@@ -171,7 +179,7 @@ async function handleMessage(message, env) {
 
     const messageText = error?.name === "AbortError"
       ? "Запрос к Gemini превысил лимит ожидания. Попробуй ещё раз позже."
-      : "Не удалось обработать текст. Проверь Cloudflare Logs для подробностей. Запрос не был засчитан.";
+      : "Не удалось обработать текст. Проверь Cloudflare Logs. Запрос не был засчитан.";
 
     await sendMessage(env, chatId, messageText);
   }
@@ -270,7 +278,6 @@ async function saveUsage(userId, requests, chars, env) {
   );
 }
 
-
 async function rewriteText(text, mode, env) {
   if (!env.GEMINI_API_KEY) {
     throw new Error("Missing GEMINI_API_KEY");
@@ -278,26 +285,30 @@ async function rewriteText(text, mode, env) {
 
   const models = [
     env.GEMINI_MODEL || "gemini-3.5-flash-lite",
+    "gemini-3.5-flash-lite",
     "gemini-3.8-flash"
   ].filter((model, index, arr) => arr.indexOf(model) === index);
 
-const systemInstruction = `You are a conservative human-focused text editor.
+  const systemInstruction = `You are a careful, conservative editor working in the selected style.
 
 Editing style: ${MODES[mode].instruction}
 
-Your goal is to improve the text while preserving the author's own writing style.
+Your goal is to improve the writing while preserving the author's voice.
 
-Rules:
-- Make minimal changes. Do not rewrite sentences that are already clear.
-- Preserve the author's vocabulary, tone, phrasing, and level of English.
-- Use straightforward, everyday academic English where appropriate.
-- Avoid generic introductions, formulaic transitions, repetitive sentence structures, and unnecessary filler.
-- Do not make the text unnecessarily sophisticated, formal, or polished.
-- Keep sentence structures varied and natural.
-- Preserve the original meaning, facts, arguments, citations, and references.
-- Never invent evidence, sources, statistics, or examples.
-- Do not deliberately introduce grammatical errors.
-- Return only the edited text, without explanations or commentary.`;
+- Preserve the author's meaning, reasoning, facts, evidence, examples, and level of certainty.
+- Make only useful edits; do not rewrite sentences that are already clear.
+- Prefer simple, familiar English over unnecessarily advanced vocabulary.
+- Avoid generic openings, clichés, formulaic transitions, repetitive sentence patterns, and filler.
+- Keep sentence length and structure appropriate to the meaning and the author's existing style.
+- Do not make the writing excessively polished, formal, or complicated.
+- Preserve understandable original phrasing instead of replacing words with synonyms without a reason.
+- Avoid unnecessary stylistic corrections that change the author's voice.
+- Correct errors that make the meaning unclear.
+- Do not invent statistics, sources, evidence, examples, or personal experiences.
+- Preserve citations, quotations, names, numbers, and dates.
+- Return only the edited text, without explanations or commentary.
+- Preserve the author's natural writing habits, vocabulary, and level of English. Do not overcorrect minor stylistic issues or rewrite sentences that already communicate the intended meaning clearly. Prefer authentic, straightforward language over excessively polished academic prose.
+- You can occasionally include specific typos—like accidental double letters—and punctuation errors to lower the AI ​​detection score.`;
 
   let lastError;
 
@@ -357,10 +368,12 @@ Rules:
       } catch (error) {
         lastError = error;
 
+        const statusMatch = error?.message?.match(/Gemini API (\d{3}):/);
+        const status = statusMatch ? Number(statusMatch[1]) : null;
+
         if (
-          error?.message?.includes("Gemini API 401") ||
-          error?.message?.includes("Gemini API 403") ||
-          error?.message?.includes("Gemini API 400")
+          status !== null &&
+          ![408, 429, 500, 502, 503, 504].includes(status)
         ) {
           throw error;
         }
@@ -380,7 +393,6 @@ Rules:
 
   throw lastError || new Error("All Gemini models failed");
 }
-
 
 async function telegramCall(env, method, payload) {
   if (!env.TELEGRAM_BOT_TOKEN) {
